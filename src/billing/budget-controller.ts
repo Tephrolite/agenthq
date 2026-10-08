@@ -46,7 +46,8 @@ export class BudgetController {
   }
 
   report(): BudgetReport {
-    const records = this.ledger.list();
+    const month = new Date().toISOString().slice(0, 7);
+    const records = this.ledger.list().filter(record => record.startedAt.toISOString().slice(0, 7) === month || record.status === "uncertain" || record.status === "reserved");
     const completed = records.filter((record) => record.status === "completed");
     const estimatedUsage = completed.reduce((sum, record) => sum + (record.reportedCost ?? record.reservedCost), 0n);
     const reservedSpending = records.filter((record) => record.status === "reserved" || record.status === "uncertain")

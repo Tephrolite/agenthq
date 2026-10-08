@@ -10,6 +10,7 @@ export interface ModelRequest {
   maximumInputTokens: number;
   maximumOutputTokens: number;
   autonomous?: boolean;
+  responseSchema?: Record<string, unknown>;
 }
 
 export interface ModelResponse {
@@ -18,7 +19,7 @@ export interface ModelResponse {
 }
 
 export interface ModelClient {
-  execute(request: { model: string; input: string; maxOutputTokens: number; signal: AbortSignal }): Promise<ModelResponse>;
+  execute(request: { model: string; input: string; maxOutputTokens: number; signal: AbortSignal; responseSchema?: Record<string, unknown> }): Promise<ModelResponse>;
 }
 
 export class ProviderOutcomeUncertainError extends Error {}
@@ -42,6 +43,10 @@ export class ModelGateway {
       throw new Error(`maximumOutputTokens must be between 1 and ${this.config.maxOutputTokens}.`);
     }
 
+    if (Buffer.byteLength(request.input, "utf8") + (request.responseSchema ? Buffer.byteLength(JSON.stringify(request.responseSchema), "utf8") : 0) + 256 > request.maximumInputTokens) {
+      throw new Error("Input exceeds the conservative UTF-8 byte token bound plus framing allowance.");
+    }
+
     const estimatedCost = estimateModelCost(request.model, request.maximumInputTokens, request.maximumOutputTokens);
     const execution = this.controller.reserve(request.taskId, request.model, estimatedCost, request.autonomous ?? false);
     const signal = AbortSignal.timeout(this.config.modelTimeoutMs);
@@ -50,7 +55,8 @@ export class ModelGateway {
         model: request.model,
         input: request.input,
         maxOutputTokens: request.maximumOutputTokens,
-        signal
+        signal,
+        responseSchema: request.responseSchema
       });
       if (!response.usage) {
         this.ledger.markUncertain(execution.id, "Provider returned no usage data; reservation retained.");

@@ -80,3 +80,17 @@ test("autonomous runs are disabled by default", async () => {
   const { gateway } = setup();
   await assert.rejects(gateway.execute(request({ autonomous: true })), BudgetRejectedError);
 });
+test("rejects understated input bounds before a provider call", async () => {
+  const { gateway, ledger } = setup();
+  await assert.rejects(gateway.execute(request({ input: 'x'.repeat(1000), maximumInputTokens: 1000 })), /Input exceeds/);
+  assert.equal(ledger.list().length, 0);
+});
+
+test("monthly accounting excludes settled older months but retains old uncertain spending", () => {
+  const { ledger, controller } = setup();
+  const startedAt = new Date('2020-01-01T00:00:00Z');
+  ledger.reserve({ id: 'old', taskId: 'old-task', model: 'gpt-5.4-mini', status: 'completed', reservedCost: 100n, reportedCost: 100n, startedAt });
+  ledger.reserve({ id: 'unknown', taskId: 'unknown-task', model: 'gpt-5.4-mini', status: 'uncertain', reservedCost: 200n, startedAt });
+  assert.equal(controller.report().estimatedUsage, 0n);
+  assert.equal(controller.report().reservedSpending, 200n);
+});

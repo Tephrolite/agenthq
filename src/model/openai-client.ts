@@ -13,11 +13,13 @@ export class OpenAIResponsesClient implements ModelClient {
     this.client = new OpenAI({ apiKey, maxRetries: 0 });
   }
 
-  async execute(request: { model: string; input: string; maxOutputTokens: number; signal: AbortSignal }): Promise<ModelResponse> {
+  async execute(request: { model: string; input: string; maxOutputTokens: number; signal: AbortSignal; responseSchema?: Record<string, unknown> }): Promise<ModelResponse> {
     try {
       const response = await this.client.responses.create({
         model: request.model,
         input: request.input,
+        store: false,
+        text: request.responseSchema ? { format: { type: "json_schema", name: "research_brief", strict: true, schema: request.responseSchema } } : undefined,
         max_output_tokens: request.maxOutputTokens
       }, { signal: request.signal });
       return {

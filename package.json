@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "npm run build && node --test dist/test/**/*.test.js",
-    "start": "node dist/server.js"
+    "start": "node --env-file=.env dist/server.js"
   },
   "dependencies": {
     "fastify": "^5.2.1",
